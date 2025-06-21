@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rag_net;
 using rag_net.Db;
@@ -39,11 +38,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/query", (string message) =>
-{
-    //Create a simple RAG response
-    return "RAG Response for: " + message;
-});
+app.MapGet("/query", async (string message, IEmbeddingService embeddingService) => await embeddingService.SearchByEmbeddingAsync(message));
 
 app.MapPost("/populate", async
         (IFormFileCollection files, IPdfParseUtils parser, IEmbeddingService embeddingService) =>

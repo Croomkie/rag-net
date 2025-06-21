@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
+using Pgvector;
+using rag_net.Db;
 using rag_net.Db.Dto;
 using rag_net.Repository;
 
@@ -39,5 +41,11 @@ public class EmbeddingService : IEmbeddingService
         {
             await _repository.AddAsync(chunk);
         }
+    }
+
+    public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query)
+    {
+        var embeddingFloat = EmbeddingSentence(query);
+        return await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat));
     }
 }
