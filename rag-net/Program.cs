@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using rag_net;
 using rag_net.Db;
 using rag_net.services;
 using Scalar.AspNetCore;
@@ -15,6 +16,8 @@ builder.Services.AddDbContext<DbContextRag>(options => options.UseNpgsql(
     builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IPdfParseUtils, PdfParseUtils>();
+builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
+builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 
 var app = builder.Build();
 
@@ -42,7 +45,10 @@ app.MapGet("/query", (string message) =>
 app.MapPost("/populate",
         (IFormFileCollection files, IPdfParseUtils parser) =>
         {
-            return Results.Ok(parser.ExtractChunksFromPdf(files));
+            var sentences = parser.ExtractChunksFromPdf(files);
+            
+            
+            return Results.Ok();
         })
     .DisableAntiforgery();
 

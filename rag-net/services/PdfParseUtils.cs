@@ -1,32 +1,39 @@
 ﻿using System.Text.RegularExpressions;
+using rag_net.Db.Dto;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 
 namespace rag_net.services;
 
-public class PdfParseUtils : IPdfParseUtils
+public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
 {
-    public IList<string> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300)
+    public IList<CreateEmbeddingChunkDto> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300)
     {
-        using var fileStream = files[0].OpenReadStream();
-        byte[] bytes;
-
-        using (var memoryStream = new MemoryStream())
-        {
-            fileStream.CopyTo(memoryStream);
-            bytes = memoryStream.ToArray();
-        }
+        IList<CreateEmbeddingChunkDto> chunks = new List<CreateEmbeddingChunkDto>();
 
         var optimizedChunks = new List<string>();
 
-        using (PdfDocument document = PdfDocument.Open(bytes))
+        foreach (var file in files)
         {
+            string fileId = Guid.NewGuid().ToString();
+            using var fileStream = file.OpenReadStream();
+            byte[] bytes;
+
+            using (var memoryStream = new MemoryStream())
+            {
+                fileStream.CopyTo(memoryStream);
+                bytes = memoryStream.ToArray();
+            }
+
+            using PdfDocument document = PdfDocument.Open(bytes);
+
             foreach (Page page in document.GetPages())
             {
                 string pageText = Regex.Replace(page.Text, @"\s+", " ");
 
                 // Suppression phrases inutiles récurrentes
-                pageText = Regex.Replace(pageText, @"(Malgré.*?constructibilité.*?différentes\.)", "", RegexOptions.IgnoreCase);
+                pageText = Regex.Replace(pageText, @"(Malgré.*?constructibilité.*?différentes\.)", "",
+                    RegexOptions.IgnoreCase);
 
                 // Découpe en paragraphes via détection intelligente
                 var paragraphs = Regex.Split(pageText, @"(?<=\.)\s+|\•|\–|\- ");
@@ -39,7 +46,19 @@ public class PdfParseUtils : IPdfParseUtils
                     // Chunking intelligent
                     if (cleanParagraph.Length <= chunkSize)
                     {
-                        optimizedChunks.Add(cleanParagraph);
+                        var embedding = embeddingService.EmbeddingSentence(cleanParagraph);
+
+                        var chunk = new CreateEmbeddingChunkDto
+                        {
+                            FileId = fileId,
+                            FileName = file.FileName,
+                            FileType = file.ContentType,
+                            Url = "url",
+                            Chunk = cleanParagraph,
+                            Page = page.Number,
+                            Embedding = embedding
+                        };
+                        chunks.Add(chunk);
                     }
                     else
                     {
@@ -47,13 +66,26 @@ public class PdfParseUtils : IPdfParseUtils
                         for (int i = 0; i < cleanParagraph.Length; i += chunkSize)
                         {
                             int length = Math.Min(chunkSize, cleanParagraph.Length - i);
-                            optimizedChunks.Add(cleanParagraph.Substring(i, length).Trim());
+                            var embedding =
+                                embeddingService.EmbeddingSentence(cleanParagraph.Substring(i, length).Trim());
+                            
+                            var subChunk = new CreateEmbeddingChunkDto
+                            {
+                                FileId = fileId,
+                                FileName = file.FileName,
+                                FileType = file.ContentType,
+                                Url = "url",
+                                Chunk = cleanParagraph.Substring(i, length).Trim(),
+                                Page = page.Number,
+                                Embedding = embedding
+                            };
+                            chunks.Add(subChunk);
                         }
                     }
                 }
             }
         }
 
-        return optimizedChunks;
+        return chunks;
     }
 }
