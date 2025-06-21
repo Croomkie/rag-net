@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Pgvector;
 
 namespace rag_net.Db.Dto;
 
@@ -17,5 +18,5 @@ public class CreateEmbeddingChunkDto
 
     public int Page { get; init; }
 
-    public required float[] Embedding { get; init; }
+    public required Vector Embedding { get; init; }
 }

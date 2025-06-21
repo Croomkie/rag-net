@@ -1,14 +1,18 @@
 ﻿using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
+using rag_net.Db.Dto;
+using rag_net.Repository;
 
 namespace rag_net.services;
 
 public class EmbeddingService : IEmbeddingService
 {
     private readonly EmbeddingClient _client;
+    private readonly IEmbeddingRepository _repository;
 
-    public EmbeddingService(IOptions<OpenAISettings> options)
+    public EmbeddingService(IOptions<OpenAISettings> options, IEmbeddingRepository repository)
     {
+        _repository = repository;
         var apiKey = options.Value.ApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Clé API OpenAI manquante !");
@@ -26,6 +30,14 @@ public class EmbeddingService : IEmbeddingService
         catch (Exception e)
         {
             throw new Exception("Erreur lors de la génération de l'embedding.", e);
+        }
+    }
+
+    public async Task SaveAllEmbeddingsAsync(IList<CreateEmbeddingChunkDto> chunks)
+    {
+        foreach (var chunk in chunks)
+        {
+            await _repository.AddAsync(chunk);
         }
     }
 }

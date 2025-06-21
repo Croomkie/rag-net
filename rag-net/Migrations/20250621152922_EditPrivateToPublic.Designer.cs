@@ -2,9 +2,9 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Pgvector;
 using rag_net.Db;
 
 #nullable disable
@@ -12,16 +12,17 @@ using rag_net.Db;
 namespace rag_net.Migrations
 {
     [DbContext(typeof(DbContextRag))]
-    partial class DbContextRagModelSnapshot : ModelSnapshot
+    [Migration("20250621152922_EditPrivateToPublic")]
+    partial class EditPrivateToPublic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.0-preview.5.25277.114")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("rag_net.Db.EmbeddingChunk", b =>
@@ -36,12 +37,11 @@ namespace rag_net.Migrations
 
                     b.Property<DateTime>("CreateAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<Vector>("Embedding")
+                    b.PrimitiveCollection<float[]>("Embedding")
                         .IsRequired()
-                        .HasColumnType("vector(1536)");
+                        .HasColumnType("real[]");
 
                     b.Property<string>("FileId")
                         .IsRequired()

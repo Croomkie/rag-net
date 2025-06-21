@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using Pgvector;
 using rag_net.Db.Dto;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -56,7 +57,7 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                             Url = "url",
                             Chunk = cleanParagraph,
                             Page = page.Number,
-                            Embedding = embedding
+                            Embedding = new Vector(embedding)
                         };
                         chunks.Add(chunk);
                     }
@@ -68,7 +69,7 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                             int length = Math.Min(chunkSize, cleanParagraph.Length - i);
                             var embedding =
                                 embeddingService.EmbeddingSentence(cleanParagraph.Substring(i, length).Trim());
-                            
+
                             var subChunk = new CreateEmbeddingChunkDto
                             {
                                 FileId = fileId,
@@ -77,7 +78,7 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                                 Url = "url",
                                 Chunk = cleanParagraph.Substring(i, length).Trim(),
                                 Page = page.Number,
-                                Embedding = embedding
+                                Embedding = new Vector(embedding)
                             };
                             chunks.Add(subChunk);
                         }

@@ -1,12 +1,26 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 
 namespace rag_net.Db;
 
 public class DbContextRag(DbContextOptions<DbContextRag> options) : DbContext(options)
 {
-    DbSet<EmbeddingChunk> EmbeddingChunk { get; set; }
+    public DbSet<EmbeddingChunk> EmbeddingChunks { get; set; }
+    
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasPostgresExtension("vector");
+        
+        modelBuilder.Entity<EmbeddingChunk>()
+            .Property(e => e.Embedding)
+            .HasColumnType("vector(1536)");
+        
+        modelBuilder.Entity<EmbeddingChunk>()
+            .Property(e => e.CreateAt)
+            .HasDefaultValueSql("now()");
+    }
 }
 
 public class EmbeddingChunk
@@ -16,7 +30,7 @@ public class EmbeddingChunk
     public required string FileId { get; init; }
 
     public required string FileName { get; init; }
-    
+
     public required string FileType { get; init; }
 
     [MaxLength(500)] public required string Url { get; init; }
@@ -25,7 +39,8 @@ public class EmbeddingChunk
 
     public int Page { get; init; }
 
-    public float[] Embedding { get; init; } = [];
+    [Column(TypeName = "vector(3)")]
+    public Vector Embedding { get; set; }
 
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime CreateAt { get; init; }

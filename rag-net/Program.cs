@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rag_net;
 using rag_net.Db;
+using rag_net.Repository;
 using rag_net.services;
 using Scalar.AspNetCore;
 
@@ -13,11 +14,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddDbContext<DbContextRag>(options => options.UseNpgsql(
-    builder.Configuration.GetConnectionString("DefaultConnection")));
+    builder.Configuration.GetConnectionString("DefaultConnection"), o => o.UseVector()));
 
 builder.Services.AddScoped<IPdfParseUtils, PdfParseUtils>();
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
+
+builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
 
 var app = builder.Build();
 
@@ -42,14 +45,15 @@ app.MapGet("/query", (string message) =>
     return "RAG Response for: " + message;
 });
 
-app.MapPost("/populate",
-        (IFormFileCollection files, IPdfParseUtils parser) =>
-        {
-            var sentences = parser.ExtractChunksFromPdf(files);
-            
-            
-            return Results.Ok();
-        })
+app.MapPost("/populate", async
+        (IFormFileCollection files, IPdfParseUtils parser, IEmbeddingService embeddingService) =>
+    {
+        var chunks = parser.ExtractChunksFromPdf(files);
+
+        await embeddingService.SaveAllEmbeddingsAsync(chunks);
+
+        return Results.Ok("Le PDF a bien été enregistré");
+    })
     .DisableAntiforgery();
 
 app.Run();
