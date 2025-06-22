@@ -11,12 +11,13 @@ public class CreateEmbeddingChunkDto
 
     public required string FileType { get; init; }
 
-    [MaxLength(500)]
-    public required string Url { get; init; }
+    [MaxLength(500)] public required string Url { get; init; }
 
     public required string Chunk { get; init; }
 
     public int Page { get; init; }
 
     public required Vector Embedding { get; init; }
+
+    public required string ProductName { get; init; }
 }

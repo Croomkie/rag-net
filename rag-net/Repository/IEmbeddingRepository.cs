@@ -8,5 +8,5 @@ public interface IEmbeddingRepository
 {
     Task AddAsync(CreateEmbeddingChunkDto chunk);
 
-    Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(Vector queryVector, int topK = 5);
+    Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(Vector queryVector, int topK = 5, string productName = "rag-net");
 }

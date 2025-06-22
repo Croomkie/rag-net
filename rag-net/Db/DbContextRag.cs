@@ -41,6 +41,8 @@ public class EmbeddingChunk
 
     [Column(TypeName = "vector(3)")]
     public Vector Embedding { get; set; }
+    
+    public string ProductName { get; init; }
 
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime CreateAt { get; init; }

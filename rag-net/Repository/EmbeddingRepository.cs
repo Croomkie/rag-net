@@ -19,16 +19,19 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
             Url = chunk.Url,
             Chunk = chunk.Chunk,
             Embedding = chunk.Embedding,
+            ProductName = chunk.ProductName,
         });
 
         await context.SaveChangesAsync();
     }
 
-    public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(Vector queryVector, int topK = 5)
+    public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(Vector queryVector, int topK = 5,
+        string productName = "rag-net")
     {
         return await context.EmbeddingChunks
             .OrderBy(e => e.Embedding.CosineDistance(queryVector))
             .Take(topK)
+            .Where(e => e.ProductName == productName)
             .Select((x) => new GetEmbeddingChunkDto
             {
                 FileId = x.FileId,

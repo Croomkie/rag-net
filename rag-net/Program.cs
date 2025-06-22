@@ -38,12 +38,14 @@ using (var scope = app.Services.CreateScope())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/query", async (string message, IEmbeddingService embeddingService) => await embeddingService.SearchByEmbeddingAsync(message));
+app.MapGet("/query",
+    async (string message, string productName, IEmbeddingService embeddingService) =>
+        await embeddingService.SearchByEmbeddingAsync(message, productName));
 
 app.MapPost("/populate", async
-        (IFormFileCollection files, IPdfParseUtils parser, IEmbeddingService embeddingService) =>
+        (IFormFileCollection files, string productName, IPdfParseUtils parser, IEmbeddingService embeddingService) =>
     {
-        var chunks = parser.ExtractChunksFromPdf(files);
+        var chunks = parser.ExtractChunksFromPdf(files, 300, productName);
 
         await embeddingService.SaveAllEmbeddingsAsync(chunks);
 

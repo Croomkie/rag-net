@@ -43,9 +43,9 @@ public class EmbeddingService : IEmbeddingService
         }
     }
 
-    public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query)
+    public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query, string productName = "rag-net")
     {
         var embeddingFloat = EmbeddingSentence(query);
-        return await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat));
+        return await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), 5, productName);
     }
 }

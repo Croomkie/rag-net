@@ -8,7 +8,8 @@ namespace rag_net.services;
 
 public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
 {
-    public IList<CreateEmbeddingChunkDto> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300)
+    public IList<CreateEmbeddingChunkDto> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300,
+        string productName = "rag-net")
     {
         IList<CreateEmbeddingChunkDto> chunks = new List<CreateEmbeddingChunkDto>();
 
@@ -57,7 +58,8 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                             Url = "url",
                             Chunk = cleanParagraph,
                             Page = page.Number,
-                            Embedding = new Vector(embedding)
+                            Embedding = new Vector(embedding),
+                            ProductName = productName
                         };
                         chunks.Add(chunk);
                     }
@@ -78,7 +80,8 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                                 Url = "url",
                                 Chunk = cleanParagraph.Substring(i, length).Trim(),
                                 Page = page.Number,
-                                Embedding = new Vector(embedding)
+                                Embedding = new Vector(embedding),
+                                ProductName = productName
                             };
                             chunks.Add(subChunk);
                         }
