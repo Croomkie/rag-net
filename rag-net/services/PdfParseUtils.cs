@@ -6,9 +6,9 @@ using UglyToad.PdfPig.Content;
 
 namespace rag_net.services;
 
-public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
+public class PdfParseUtils(IEmbeddingService embeddingService, IBlobService blobService) : IPdfParseUtils
 {
-    public IList<CreateEmbeddingChunkDto> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300,
+    public async Task<IList<CreateEmbeddingChunkDto>> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300,
         string productName = "rag-net")
     {
         IList<CreateEmbeddingChunkDto> chunks = new List<CreateEmbeddingChunkDto>();
@@ -26,6 +26,9 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                 fileStream.CopyTo(memoryStream);
                 bytes = memoryStream.ToArray();
             }
+
+            //Save PDF to Azure blob
+            string url = await blobService.SaveBlobAsync(file, productName);
 
             using PdfDocument document = PdfDocument.Open(bytes);
 
@@ -55,7 +58,7 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                             FileId = fileId,
                             FileName = file.FileName,
                             FileType = file.ContentType,
-                            Url = "url",
+                            Url = url,
                             Chunk = cleanParagraph,
                             Page = page.Number,
                             Embedding = new Vector(embedding),
@@ -77,7 +80,7 @@ public class PdfParseUtils(IEmbeddingService embeddingService) : IPdfParseUtils
                                 FileId = fileId,
                                 FileName = file.FileName,
                                 FileType = file.ContentType,
-                                Url = "url",
+                                Url = url,
                                 Chunk = cleanParagraph.Substring(i, length).Trim(),
                                 Page = page.Number,
                                 Embedding = new Vector(embedding),
