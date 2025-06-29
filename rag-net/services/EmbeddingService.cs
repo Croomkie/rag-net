@@ -23,11 +23,11 @@ public class EmbeddingService : IEmbeddingService
         _client = new EmbeddingClient("text-embedding-3-small", apiKey);
     }
 
-    public float[] EmbeddingSentence(string sentence)
+    public async Task<float[]> EmbeddingSentence(string sentence)
     {
         try
         {
-            OpenAIEmbedding embedding = _client.GenerateEmbedding(sentence);
+            OpenAIEmbedding embedding = await _client.GenerateEmbeddingAsync(sentence);
 
             return embedding.ToFloats().ToArray();
         }
@@ -37,6 +37,21 @@ public class EmbeddingService : IEmbeddingService
         }
     }
 
+    public async Task<List<float[]>> EmbeddingSentences(List<string> chunks)
+    {
+        List<float[]> vectors = new List<float[]>();
+
+        OpenAIEmbeddingCollection collection = await _client.GenerateEmbeddingsAsync(chunks);
+        foreach (OpenAIEmbedding embedding in collection)
+        {
+            float[] vector = embedding.ToFloats().ToArray();
+
+            vectors.Add(vector);
+        }
+
+        return vectors;
+    }
+
     public async Task SaveAllEmbeddingsAsync(IList<CreateEmbeddingChunkDto> chunks)
     {
         await _repository.AddManyAsync(chunks);
@@ -44,20 +59,20 @@ public class EmbeddingService : IEmbeddingService
 
     public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query, string productName = "rag-net")
     {
-        return await RankedChunksAsync(query, productName);
+        return await RankedChunksAsync(query, 5, productName);
     }
 
-    private async Task<List<GetEmbeddingChunkDto>> RankedChunksAsync(string query, string productName)
+    private async Task<List<GetEmbeddingChunkDto>> RankedChunksAsync(string query, int topK, string productName)
     {
-        var embeddingFloat = EmbeddingSentence(query);
-        var chunks = await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), 5, productName);
+        var embeddingFloat = await EmbeddingSentence(query);
+        var chunks = await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), topK, productName);
 
         return await _openAiChunkService.RankedChunksOpenAiAsync(query, chunks);
     }
 
     public async IAsyncEnumerable<string> ChatResponseAsync(string query, string productName = "rag-net")
     {
-        var chunks = await RankedChunksAsync(query, productName);
+        var chunks = await RankedChunksAsync(query, 15, productName);
 
         if (chunks.Count == 0)
         {

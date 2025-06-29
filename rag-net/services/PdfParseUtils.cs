@@ -19,6 +19,9 @@ public class PdfParseUtils(
         int overlapSize = 80;
 
         var chunks = new List<CreateEmbeddingChunkDto>();
+        var finalChunkTexts =
+            new List<(string Text, int Page, string FileId, string FileName, string FileType, string Url, string
+                ProductName, int ChunkIndex)>();
 
         foreach (var file in files)
         {
@@ -41,6 +44,7 @@ public class PdfParseUtils(
                 var blocks = Regex.Split(rawText, @"\n{2,}|\r\n{2,}");
 
                 int chunkIndex = 0;
+                int smartChunkCount = 0;
 
                 foreach (var block in blocks)
                 {
@@ -53,9 +57,10 @@ public class PdfParseUtils(
                     {
                         smartChunks = new List<string> { cleanBlock };
                     }
-                    else if (IsProblematicChunk(cleanBlock))
+                    else if (IsProblematicChunk(cleanBlock) && smartChunkCount < 5)
                     {
                         smartChunks = await openAiChunkService.SmartChunkWithOpenAiAsync(cleanBlock);
+                        smartChunkCount++;
                     }
                     else
                     {
@@ -67,25 +72,37 @@ public class PdfParseUtils(
                         var finalChunk = chunkText?.Trim();
                         if (string.IsNullOrWhiteSpace(finalChunk) || finalChunk.Length < 10) continue;
 
-                        var embedding = embeddingService.EmbeddingSentence(finalChunk);
-
-                        var dto = new CreateEmbeddingChunkDto
-                        {
-                            FileId = fileId,
-                            FileName = fileName,
-                            FileType = fileType,
-                            Url = url,
-                            Chunk = finalChunk,
-                            Page = page.Number,
-                            Embedding = new Vector(embedding),
-                            ProductName = productName,
-                            ChunkIndex = chunkIndex++
-                        };
-
-                        chunks.Add(dto);
+                        finalChunkTexts.Add((finalChunk, page.Number, fileId, fileName, fileType, url, productName,
+                            chunkIndex++));
                     }
                 }
             }
+        }
+
+        // 🧠 1 seul appel embedding pour tous les chunks
+        var textsOnly = finalChunkTexts.Select(t => t.Text).ToList();
+        var embeddings = await embeddingService.EmbeddingSentences(textsOnly);
+
+        // Associe chunks + embeddings
+        for (int i = 0; i < finalChunkTexts.Count; i++)
+        {
+            var meta = finalChunkTexts[i];
+            var vector = new Vector(embeddings[i]);
+
+            var dto = new CreateEmbeddingChunkDto
+            {
+                FileId = meta.FileId,
+                FileName = meta.FileName,
+                FileType = meta.FileType,
+                Url = meta.Url,
+                Chunk = meta.Text,
+                Page = meta.Page,
+                Embedding = vector,
+                ProductName = meta.ProductName,
+                ChunkIndex = meta.ChunkIndex
+            };
+
+            chunks.Add(dto);
         }
 
         return chunks;
@@ -122,14 +139,9 @@ public class PdfParseUtils(
 
     bool IsProblematicChunk(string text)
     {
-        // Trop long ou pas assez structuré (peu d'espaces)
-        if (text.Length > 800) return true;
-
-        // Manque d'espace après les points ou les virgules
-        if (Regex.Matches(text, @"[.,!?][^\s]").Count > 3) return true;
-
-        // Trop dense (trop peu d'espaces par rapport aux caractères)
-        if (text.Length > 200 && text.Count(char.IsWhiteSpace) < text.Length / 15) return true;
+        // Très long + peu structuré
+        if (text.Length > 1000 && text.Count(char.IsWhiteSpace) < text.Length / 10)
+            return true;
 
         return false;
     }
