@@ -72,15 +72,14 @@ public class EmbeddingService : IEmbeddingService
 
     public async IAsyncEnumerable<string> ChatResponseAsync(string query, string productName = "rag-net")
     {
-        var chunks = await RankedChunksAsync(query, 15, productName);
+        var chunks = await RankedChunksAsync(query, 75, productName);
 
         if (chunks.Count == 0)
         {
             yield return "Aucun résultat trouvé.";
             yield break;
         }
-
-
+        
         await foreach (var token in _openAiChunkService.CompletionAsync(query, chunks))
         {
             yield return token;

@@ -161,6 +161,7 @@ public class OpenAiChunkService : IOpenAiChunkService
         for (int i = 0; i < chunks.Count; i++)
         {
             sb.AppendLine($"Chunk {chunks[i].Id}:");
+            sb.AppendLine($"File: {chunks[i].FileName}");
             sb.AppendLine(chunks[i].Chunk.Replace("\n", " "));
             sb.AppendLine();
         }
@@ -191,5 +192,31 @@ public class OpenAiChunkService : IOpenAiChunkService
                 yield return completionUpdate.ContentUpdate[0].Text;
             }
         }
+    }
+
+    public async Task<string> QueryOptimizationAsync(string query)
+    {
+        var messages = new List<ChatMessage>
+        {
+            new UserChatMessage($$"""
+                                  Tu es un assistant expert en reformulation de requêtes pour un système RAG (Retrieval-Augmented Generation). 
+
+                                  Ton objectif est de réécrire la requête suivante pour :
+                                  - Maximiser la précision et la clarté
+                                  - Supprimer les termes inutiles ou ambigus
+                                  - Conserver uniquement les mots-clés utiles à la recherche vectorielle
+                                  - Ne pas changer le sens de la question
+
+                                  Requête à optimiser :
+                                  "{{query}}"
+
+                                  Donne uniquement la requête optimisée sur une seule ligne. Ne retourne rien d'autre.
+                                  """
+            )
+        };
+
+        ChatCompletion completion = await _client.CompleteChatAsync(messages);
+
+        return completion.Content[0].Text.Trim();
     }
 }
