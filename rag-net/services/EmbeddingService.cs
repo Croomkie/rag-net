@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using OpenAI.Embeddings;
 using Pgvector;
-using rag_net.Db;
 using rag_net.Db.Dto;
 using rag_net.Repository;
 
@@ -45,9 +44,31 @@ public class EmbeddingService : IEmbeddingService
 
     public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query, string productName = "rag-net")
     {
+        return await RankedChunksAsync(query, productName);
+    }
+
+    private async Task<List<GetEmbeddingChunkDto>> RankedChunksAsync(string query, string productName)
+    {
         var embeddingFloat = EmbeddingSentence(query);
         var chunks = await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), 5, productName);
 
         return await _openAiChunkService.RankedChunksOpenAiAsync(query, chunks);
+    }
+
+    public async IAsyncEnumerable<string> ChatResponseAsync(string query, string productName = "rag-net")
+    {
+        var chunks = await RankedChunksAsync(query, productName);
+
+        if (chunks.Count == 0)
+        {
+            yield return "Aucun résultat trouvé.";
+            yield break;
+        }
+
+
+        await foreach (var token in _openAiChunkService.CompletionAsync(query, chunks))
+        {
+            yield return token;
+        }
     }
 }

@@ -6,4 +6,5 @@ public interface IOpenAiChunkService
 {
     Task<List<string>> SmartChunkWithOpenAiAsync(string content);
     Task<List<GetEmbeddingChunkDto>> RankedChunksOpenAiAsync(string query, List<GetEmbeddingChunkDto> chunks);
+    IAsyncEnumerable<string> CompletionAsync(string query, List<GetEmbeddingChunkDto> chunks);
 }

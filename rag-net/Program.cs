@@ -45,6 +45,19 @@ app.MapGet("/query",
     async (string message, string productName, IEmbeddingService embeddingService) =>
         await embeddingService.SearchByEmbeddingAsync(message, productName));
 
+app.MapGet("/chat",
+    async (HttpContext context, string message, string productName, IEmbeddingService embeddingService) =>
+    {
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        var writer = new StreamWriter(context.Response.Body);
+
+        await foreach (var token in embeddingService.ChatResponseAsync(message, productName))
+        {
+            await writer.WriteAsync(token);
+            await writer.FlushAsync();
+        }
+    });
+
 app.MapPost("/populate", async
         (IFormFileCollection files, string productName, IPdfParseUtils parser, IEmbeddingService embeddingService) =>
     {

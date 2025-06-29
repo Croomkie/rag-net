@@ -1,7 +1,7 @@
-﻿using System.Text;
+﻿using System.ClientModel;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using OpenAI;
 using OpenAI.Chat;
 using rag_net.Db.Dto;
 
@@ -166,5 +166,30 @@ public class OpenAiChunkService : IOpenAiChunkService
         }
 
         return sb.ToString();
+    }
+
+    public async IAsyncEnumerable<string> CompletionAsync(string query, List<GetEmbeddingChunkDto> chunks)
+    {
+        AsyncCollectionResult<StreamingChatCompletionUpdate> completionUpdates =
+            _client.CompleteChatStreamingAsync($$"""
+                                                 Tu es un assistant intelligent. En te basant uniquement sur les extraits de documents ci-dessous, rédige une réponse naturelle, claire et synthétique à la question suivante :
+
+                                                 Question :
+                                                 "{{query}}"
+
+                                                 Et voici les extraits de texte numérotés et triés par score :
+                                                 {{FormatChunksForPrompt(chunks)}}
+
+                                                 Ta réponse doit être fluide, professionnelle, et strictement fondée sur les informations présentes dans les extraits. N’invente rien. Si l'information est partielle, précise-le.
+                                                 """);
+
+
+        await foreach (StreamingChatCompletionUpdate completionUpdate in completionUpdates)
+        {
+            if (completionUpdate.ContentUpdate.Count > 0)
+            {
+                yield return completionUpdate.ContentUpdate[0].Text;
+            }
+        }
     }
 }
