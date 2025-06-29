@@ -21,6 +21,24 @@ public class DbContextRag(DbContextOptions<DbContextRag> options) : DbContext(op
             .Property(e => e.CreateAt)
             .HasDefaultValueSql("now()");
     }
+    
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.Entity is EmbeddingChunk && (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+        foreach (var entityEntry in entries)
+        {
+            ((EmbeddingChunk)entityEntry.Entity).UpdateAt = DateTime.UtcNow;
+
+            if (entityEntry.State == EntityState.Added)
+            {
+                ((EmbeddingChunk)entityEntry.Entity).CreateAt = DateTime.UtcNow;
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
 }
 
 public class EmbeddingChunk
@@ -43,10 +61,10 @@ public class EmbeddingChunk
     public Vector Embedding { get; set; }
     
     public string ProductName { get; init; }
-
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public DateTime CreateAt { get; init; }
-
-    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
-    public DateTime UpdateAt { get; init; }
+    
+    public int ChunkIndex { get; init; }
+    
+    public DateTime CreateAt { get; set; }
+    
+    public DateTime UpdateAt { get; set; }
 }

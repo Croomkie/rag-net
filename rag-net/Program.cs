@@ -19,6 +19,7 @@ builder.Services.AddScoped<IPdfParseUtils, PdfParseUtils>();
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 builder.Services.AddScoped<IBlobService, BlobService>();
+builder.Services.AddScoped<IOpenAiChunkService, OpenAiChunkService>();
 
 builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
 

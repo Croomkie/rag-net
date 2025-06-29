@@ -16,4 +16,8 @@ public class GetEmbeddingChunkDto
     public required string Chunk { get; init; }
 
     public int Page { get; init; }
+    
+    public required string ProductName { get; init; }
+    
+    public int ChunkIndex { get; init; }
 }

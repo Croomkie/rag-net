@@ -37,10 +37,7 @@ public class EmbeddingService : IEmbeddingService
 
     public async Task SaveAllEmbeddingsAsync(IList<CreateEmbeddingChunkDto> chunks)
     {
-        foreach (var chunk in chunks)
-        {
-            await _repository.AddAsync(chunk);
-        }
+        await _repository.AddManyAsync(chunks);
     }
 
     public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query, string productName = "rag-net")

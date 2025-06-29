@@ -20,8 +20,28 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
             Chunk = chunk.Chunk,
             Embedding = chunk.Embedding,
             ProductName = chunk.ProductName,
+            ChunkIndex = chunk.ChunkIndex
         });
 
+        await context.SaveChangesAsync();
+    }
+    
+    public async Task AddManyAsync(IEnumerable<CreateEmbeddingChunkDto> chunks)
+    {
+        var entities = chunks.Select(chunk => new EmbeddingChunk
+        {
+            FileId = chunk.FileId,
+            FileName = chunk.FileName,
+            FileType = chunk.FileType,
+            Page = chunk.Page,
+            Url = chunk.Url,
+            Chunk = chunk.Chunk,
+            Embedding = chunk.Embedding,
+            ProductName = chunk.ProductName,
+            ChunkIndex = chunk.ChunkIndex
+        }).ToList();
+
+        context.EmbeddingChunks.AddRange(entities);
         await context.SaveChangesAsync();
     }
 
@@ -29,9 +49,9 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
         string productName = "rag-net")
     {
         return await context.EmbeddingChunks
+            .Where(e => e.ProductName == productName)
             .OrderBy(e => e.Embedding.CosineDistance(queryVector))
             .Take(topK)
-            .Where(e => e.ProductName == productName)
             .Select((x) => new GetEmbeddingChunkDto
             {
                 FileId = x.FileId,
@@ -40,6 +60,8 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
                 Page = x.Page,
                 Url = x.Url,
                 Chunk = x.Chunk,
+                ProductName = x.ProductName,
+                ChunkIndex = x.ChunkIndex
             })
             .ToListAsync();
     }

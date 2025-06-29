@@ -6,93 +6,131 @@ using UglyToad.PdfPig.Content;
 
 namespace rag_net.services;
 
-public class PdfParseUtils(IEmbeddingService embeddingService, IBlobService blobService) : IPdfParseUtils
+public class PdfParseUtils(
+    IEmbeddingService embeddingService,
+    IBlobService blobService,
+    IOpenAiChunkService openAiChunkService) : IPdfParseUtils
 {
-    public async Task<IList<CreateEmbeddingChunkDto>> ExtractChunksFromPdf(IFormFileCollection files, int chunkSize = 300,
+    public async Task<IList<CreateEmbeddingChunkDto>> ExtractChunksFromPdf(
+        IFormFileCollection files,
+        int chunkSize = 300,
         string productName = "rag-net")
     {
-        IList<CreateEmbeddingChunkDto> chunks = new List<CreateEmbeddingChunkDto>();
+        int overlapSize = 80;
 
-        var optimizedChunks = new List<string>();
+        var chunks = new List<CreateEmbeddingChunkDto>();
 
         foreach (var file in files)
         {
             string fileId = Guid.NewGuid().ToString();
-            using var fileStream = file.OpenReadStream();
-            byte[] bytes;
+            var fileName = file.FileName;
+            var fileType = file.ContentType;
+            string url = await blobService.SaveBlobAsync(file, productName);
 
+            byte[] bytes;
             using (var memoryStream = new MemoryStream())
             {
-                fileStream.CopyTo(memoryStream);
+                await file.CopyToAsync(memoryStream);
                 bytes = memoryStream.ToArray();
             }
 
-            //Save PDF to Azure blob
-            string url = await blobService.SaveBlobAsync(file, productName);
-
-            using PdfDocument document = PdfDocument.Open(bytes);
-
-            foreach (Page page in document.GetPages())
+            using var document = PdfDocument.Open(bytes);
+            foreach (var page in document.GetPages())
             {
-                string pageText = Regex.Replace(page.Text, @"\s+", " ");
+                string rawText = page.Text.Replace("\r", "").Replace("\t", "");
+                var blocks = Regex.Split(rawText, @"\n{2,}|\r\n{2,}");
 
-                // Suppression phrases inutiles récurrentes
-                pageText = Regex.Replace(pageText, @"(Malgré.*?constructibilité.*?différentes\.)", "",
-                    RegexOptions.IgnoreCase);
+                int chunkIndex = 0;
 
-                // Découpe en paragraphes via détection intelligente
-                var paragraphs = Regex.Split(pageText, @"(?<=\.)\s+|\•|\–|\- ");
-
-                foreach (var paragraph in paragraphs)
+                foreach (var block in blocks)
                 {
-                    var cleanParagraph = paragraph.Trim();
-                    if (cleanParagraph.Length < 20) continue; // Ignore trop courts ou vides
+                    var cleanBlock = Regex.Replace(block, @"\s+", " ").Trim();
+                    if (cleanBlock.Length < 20) continue;
 
-                    // Chunking intelligent
-                    if (cleanParagraph.Length <= chunkSize)
+                    List<string> smartChunks;
+
+                    if (cleanBlock.Length <= chunkSize)
                     {
-                        var embedding = embeddingService.EmbeddingSentence(cleanParagraph);
-
-                        var chunk = new CreateEmbeddingChunkDto
-                        {
-                            FileId = fileId,
-                            FileName = file.FileName,
-                            FileType = file.ContentType,
-                            Url = url,
-                            Chunk = cleanParagraph,
-                            Page = page.Number,
-                            Embedding = new Vector(embedding),
-                            ProductName = productName
-                        };
-                        chunks.Add(chunk);
+                        smartChunks = new List<string> { cleanBlock };
+                    }
+                    else if (IsProblematicChunk(cleanBlock))
+                    {
+                        smartChunks = await openAiChunkService.SmartChunkWithOpenAiAsync(cleanBlock);
                     }
                     else
                     {
-                        // Découpe en plusieurs chunks de taille idéale (300 char environ)
-                        for (int i = 0; i < cleanParagraph.Length; i += chunkSize)
-                        {
-                            int length = Math.Min(chunkSize, cleanParagraph.Length - i);
-                            var embedding =
-                                embeddingService.EmbeddingSentence(cleanParagraph.Substring(i, length).Trim());
+                        smartChunks = SmartSentenceChunks(cleanBlock, chunkSize, overlapSize);
+                    }
 
-                            var subChunk = new CreateEmbeddingChunkDto
-                            {
-                                FileId = fileId,
-                                FileName = file.FileName,
-                                FileType = file.ContentType,
-                                Url = url,
-                                Chunk = cleanParagraph.Substring(i, length).Trim(),
-                                Page = page.Number,
-                                Embedding = new Vector(embedding),
-                                ProductName = productName
-                            };
-                            chunks.Add(subChunk);
-                        }
+                    foreach (var chunkText in smartChunks)
+                    {
+                        var finalChunk = chunkText?.Trim();
+                        if (string.IsNullOrWhiteSpace(finalChunk) || finalChunk.Length < 10) continue;
+
+                        var embedding = embeddingService.EmbeddingSentence(finalChunk);
+
+                        var dto = new CreateEmbeddingChunkDto
+                        {
+                            FileId = fileId,
+                            FileName = fileName,
+                            FileType = fileType,
+                            Url = url,
+                            Chunk = finalChunk,
+                            Page = page.Number,
+                            Embedding = new Vector(embedding),
+                            ProductName = productName,
+                            ChunkIndex = chunkIndex++
+                        };
+
+                        chunks.Add(dto);
                     }
                 }
             }
         }
 
         return chunks;
+    }
+
+    private static List<string> SmartSentenceChunks(string text, int maxLength = 300, int overlap = 80)
+    {
+        var chunks = new List<string>();
+        var sentences = Regex.Split(text, @"(?<=[\.!\?])\s+");
+        var current = "";
+
+        foreach (var sentence in sentences)
+        {
+            if ((current + sentence).Length > maxLength)
+            {
+                chunks.Add(current.Trim());
+
+                // Génère overlap (avec les dernières phrases)
+                var words = current.Split(' ');
+                var overlapWords = words.Skip(Math.Max(0, words.Length - (overlap / 5))).ToArray(); // ~5 chars/word
+                current = string.Join(" ", overlapWords) + " " + sentence;
+            }
+            else
+            {
+                current += " " + sentence;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(current))
+            chunks.Add(current.Trim());
+
+        return chunks;
+    }
+
+    bool IsProblematicChunk(string text)
+    {
+        // Trop long ou pas assez structuré (peu d'espaces)
+        if (text.Length > 800) return true;
+
+        // Manque d'espace après les points ou les virgules
+        if (Regex.Matches(text, @"[.,!?][^\s]").Count > 3) return true;
+
+        // Trop dense (trop peu d'espaces par rapport aux caractères)
+        if (text.Length > 200 && text.Count(char.IsWhiteSpace) < text.Length / 15) return true;
+
+        return false;
     }
 }

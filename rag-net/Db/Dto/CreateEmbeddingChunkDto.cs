@@ -20,4 +20,6 @@ public class CreateEmbeddingChunkDto
     public required Vector Embedding { get; init; }
 
     public required string ProductName { get; init; }
+    
+    public int ChunkIndex { get; init; }
 }
