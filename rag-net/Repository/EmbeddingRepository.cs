@@ -25,7 +25,7 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
 
         await context.SaveChangesAsync();
     }
-    
+
     public async Task AddManyAsync(IEnumerable<CreateEmbeddingChunkDto> chunks)
     {
         var entities = chunks.Select(chunk => new EmbeddingChunk
@@ -54,6 +54,7 @@ public class EmbeddingRepository(DbContextRag context) : IEmbeddingRepository
             .Take(topK)
             .Select((x) => new GetEmbeddingChunkDto
             {
+                Id = x.Id,
                 FileId = x.FileId,
                 FileName = x.FileName,
                 FileType = x.FileType,

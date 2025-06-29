@@ -11,10 +11,13 @@ public class EmbeddingService : IEmbeddingService
 {
     private readonly EmbeddingClient _client;
     private readonly IEmbeddingRepository _repository;
+    private readonly IOpenAiChunkService _openAiChunkService;
 
-    public EmbeddingService(IOptions<OpenAISettings> options, IEmbeddingRepository repository)
+    public EmbeddingService(IOptions<OpenAISettings> options, IEmbeddingRepository repository,
+        IOpenAiChunkService openAiChunkService)
     {
         _repository = repository;
+        _openAiChunkService = openAiChunkService;
         var apiKey = options.Value.ApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException("Clé API OpenAI manquante !");
@@ -43,6 +46,8 @@ public class EmbeddingService : IEmbeddingService
     public async Task<List<GetEmbeddingChunkDto>> SearchByEmbeddingAsync(string query, string productName = "rag-net")
     {
         var embeddingFloat = EmbeddingSentence(query);
-        return await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), 5, productName);
+        var chunks = await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), 5, productName);
+
+        return await _openAiChunkService.RankedChunksOpenAiAsync(query, chunks);
     }
 }
