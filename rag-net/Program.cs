@@ -23,6 +23,17 @@ builder.Services.AddScoped<IOpenAiChunkService, OpenAiChunkService>();
 
 builder.Services.AddScoped<IEmbeddingRepository, EmbeddingRepository>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", config =>
+    {
+        config.WithOrigins("http://localhost:3000", "https://rag-ui-neon.vercel.app/")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -32,6 +43,8 @@ if (app.Environment.IsDevelopment())
 
 app.MapOpenApi();
 app.MapScalarApiReference();
+
+app.UseCors("CorsPolicy");
 
 using (var scope = app.Services.CreateScope())
 {

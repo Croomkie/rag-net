@@ -67,6 +67,9 @@ public class EmbeddingService : IEmbeddingService
         var embeddingFloat = await EmbeddingSentence(query);
         var chunks = await _repository.SearchByEmbeddingAsync(new Vector(embeddingFloat), topK, productName);
 
+        if (chunks.Count == 0)
+            return chunks;
+
         return await _openAiChunkService.RankedChunksOpenAiAsync(query, chunks);
     }
 
@@ -79,7 +82,7 @@ public class EmbeddingService : IEmbeddingService
             yield return "Aucun résultat trouvé.";
             yield break;
         }
-        
+
         await foreach (var token in _openAiChunkService.CompletionAsync(query, chunks))
         {
             yield return token;
