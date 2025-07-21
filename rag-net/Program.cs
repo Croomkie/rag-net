@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using rag_net;
 using rag_net.Db;
@@ -27,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", config =>
     {
-        config.WithOrigins("http://localhost:3000", "https://rag-ui-neon.vercel.app/")
+        config.WithOrigins("http://localhost:3000", "https://rag-ui-neon.vercel.app")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
@@ -62,7 +63,7 @@ app.MapGet("/chat",
     async (HttpContext context, string message, string productName, IEmbeddingService embeddingService) =>
     {
         context.Response.ContentType = "text/plain; charset=utf-8";
-        var writer = new StreamWriter(context.Response.Body);
+        var writer = new StreamWriter(context.Response.Body, Encoding.UTF8);
 
         await foreach (var token in embeddingService.ChatResponseAsync(message, productName))
         {
