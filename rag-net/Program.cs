@@ -53,8 +53,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-app.UseHttpsRedirection();
-
 app.MapGet("/query",
     async (string message, string productName, IEmbeddingService embeddingService) =>
         await embeddingService.SearchByEmbeddingAsync(message, productName));
