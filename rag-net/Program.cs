@@ -5,6 +5,7 @@ using rag_net.Db;
 using rag_net.Repository;
 using rag_net.services;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,11 +29,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", config =>
     {
-        config.WithOrigins("*")
+        config.WithOrigins("https://rag-ui.lutelier.dev")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
     });
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
 });
 
 var app = builder.Build();
@@ -45,6 +53,7 @@ if (app.Environment.IsDevelopment())
 app.MapOpenApi();
 app.MapScalarApiReference();
 
+app.UseForwardedHeaders();
 app.UseCors("CorsPolicy");
 
 using (var scope = app.Services.CreateScope())
