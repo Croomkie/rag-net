@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", config =>
     {
-        config.WithOrigins("http://localhost:3000", "https://rag-ui-neon.vercel.app")
+        config.WithOrigins("*")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
