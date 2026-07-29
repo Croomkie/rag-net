@@ -5,7 +5,6 @@ using rag_net.Db;
 using rag_net.Repository;
 using rag_net.services;
 using Scalar.AspNetCore;
-using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,15 +35,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.Configure<ForwardedHeadersOptions>(o =>
-{
-    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    o.KnownNetworks.Clear();
-    o.KnownProxies.Clear();
-});
-
 var app = builder.Build();
-app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
